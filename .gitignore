@@ -1,0 +1,14 @@
+# Ignore everything
+/*
+
+# But not these files...
+!.gitignore
+!README.md
+!RPMS/
+!RPMS/*
+!SRPMS/
+!SRPMS/*
+# etc...
+
+# ...even if they are in subdirectories
+#!*/
