@@ -2,27 +2,22 @@
 # Conditionals and other variables controlling the build
 # ======================================================
 
-%{!?__python_ver:%global __python_ver EMPTY}
-#global __python_ver 27
 %global unicode ucs4
 
-%if "%{__python_ver}" != "EMPTY"
-%global main_python 0
-%global python python%{__python_ver}
-%global tkinter tkinter%{__python_ver}
-%else
-%global main_python 1
-%global python python
-%global tkinter tkinter
-%endif
 
 %global pybasever 2.7
+%global pyshortver 27
 %global pylibdir %{_libdir}/python%{pybasever}
 %global tools_dir %{pylibdir}/Tools
 %global demo_dir %{pylibdir}/Demo
 %global doc_tools_dir %{pylibdir}/Doc/tools
 %global dynload_dir %{pylibdir}/lib-dynload
 %global site_packages %{pylibdir}/site-packages
+
+%global __python /usr/bin/python2
+%global python python%{pybasever}
+%global tkinter tkinter%{pybasever}
+
 
 # Python's configure script defines SOVERSION, and this is used in the Makefile
 # to determine INSTSONAME, the name of the libpython DSO:
@@ -35,7 +30,7 @@
 %global py_INSTSONAME_optimized libpython%{pybasever}.so.%{py_SOVERSION}
 %global py_INSTSONAME_debug     libpython%{pybasever}_d.so.%{py_SOVERSION}
 
-%global with_debug_build 1
+%global with_debug_build 0
 
 # Disabled for now:
 %global with_huntrleaks 0
@@ -98,7 +93,7 @@
 # the rest of the build
 %global regenerate_autotooling_patch 0
 %define _trivial .0
-%define _buildid .8
+%define _buildid .9
 
 # ==================
 # Top-level metadata
@@ -107,10 +102,16 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.18
-Release: 1%{?dist}%{?_trivial}%{?_buildid}
+Release: 40%{?dist}%{?_trivial}%{?_buildid}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
+
+Provides: python%{pyshortver} = %{version}-%{release}
+Provides: python2 = %{version}-%{release}
+
+
+
 Provides: python-abi = %{pybasever}
 Provides: python(abi) = %{pybasever}
 
@@ -152,7 +153,8 @@ BuildRequires: systemtap-sdt-devel
 # (this introduces a circular dependency, in that systemtap-sdt-devel's
 # /usr/bin/dtrace is a python script)
 %global tapsetdir      /usr/share/systemtap/tapset
-%endif # with_systemtap
+%endif
+# with_systemtap
 
 BuildRequires: tar
 BuildRequires: tcl-devel
@@ -205,7 +207,7 @@ Source9: python.conf
 
 # Supply various useful macros for building Python components:
 # NOTE: The %%python_provide macro is copied directly from Fedora/EPEL, but the
-# %{python3_pkgversion} and %{python3_other_pkgversion} macros used within it
+# %%{python3_pkgversion} and %%{python3_other_pkgversion} macros used within it
 # are missing in RHEL. However, in their absence the lua code will run fine for
 # Python 2 packages and will print an error only if invoked for Python 3
 # packages (unless the python-srpm-macros package from EPEL is installed). That
@@ -217,33 +219,6 @@ Source10: macros.python
 # ======================================================
 # Additional metadata, and subpackages
 # ======================================================
-
-%if %{main_python}
-Obsoletes: Distutils
-Provides: Distutils
-Obsoletes: python2
-Provides: python2 = %{version}
-Obsoletes: python-elementtree <= 1.2.6
-Obsoletes: python-sqlite < 2.3.2
-Provides: python-sqlite = 2.3.2
-Obsoletes: python-ctypes < 1.0.1
-Provides: python-ctypes = 1.0.1
-Obsoletes: python-hashlib < 20081120
-Provides: python-hashlib = 20081120
-Obsoletes: python-uuid < 1.31
-Provides: python-uuid = 1.31
-
-# python-sqlite2-2.3.5-5.fc18 was retired.  Obsolete the old package here
-# so it gets uninstalled on updates
-%if 0%{?fedora} >= 17
-Obsoletes: python-sqlite2 <= 2.3.5-6
-%endif
-
-# python-argparse is part of python as of version 2.7
-# drop this Provides in F17
-# (having Obsoletes here caused problems with multilib; see rhbz#667984)
-Provides:   python-argparse = %{version}-%{release}
-%endif
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -319,7 +294,7 @@ URL: http://www.python.org/
 #     - _codecs_jp cjkcodecs/_codecs_jp.c
 #     - _codecs_kr cjkcodecs/_codecs_kr.c
 #     - _codecs_tw cjkcodecs/_codecs_tw.c
-Patch0: python-2.7.1-config.patch
+Patch0: python-2.7.1-config-noNIS.patch
 
 # Removes the "-g" option from "pydoc", for some reason; I believe
 # (dmalcolm 2010-01-29) that this was introduced in this change:
@@ -408,7 +383,7 @@ Patch102: 00102-2.7.13-lib64.patch
 Patch103: python-2.7-lib64-sysconfig.patch
 
 # 00104 #
-# Only used when "%{_lib}" == "lib64"
+# Only used when "%%{_lib}" == "lib64"
 # Another lib64 fix, for distutils/tests/test_install.py; not upstream:
 Patch104: 00104-lib64-fix-for-test_install.patch
 
@@ -598,24 +573,6 @@ Patch143: 00143-tsc-on-ppc.patch
 # (Optionally) disable the gdbm module:
 Patch144: 00144-no-gdbm.patch
 
-# 00146 #
-# Support OpenSSL FIPS mode (e.g. when OPENSSL_FORCE_FIPS_MODE=1 is set)
-# - handle failures from OpenSSL (e.g. on attempts to use MD5 in a
-#   FIPS-enforcing environment)
-# - add a new "usedforsecurity" keyword argument to the various digest
-#   algorithms in hashlib so that you can whitelist a callsite with
-#   "usedforsecurity=False"
-# (sent upstream for python 3 as http://bugs.python.org/issue9216; this is a
-# backport to python 2.7; see RHEL6 patch 119)
-# - enforce usage of the _hashlib implementation: don't fall back to the _md5
-#   and _sha* modules (leading to clearer error messages if fips selftests
-#   fail)
-# - don't build the _md5 and _sha* modules; rely on the _hashlib implementation
-#   of hashlib (for example, md5.py will use _hashlib's implementation of MD5,
-#   if permitted by the FIPS setting)
-# (rhbz#563986)
-Patch146: 00146-hashlib-fips.patch
-
 # 00147 #
 # Add a sys._debugmallocstats() function
 # Based on patch 202 from RHEL 5's python.spec, with updates from rhbz#737198
@@ -733,11 +690,29 @@ Patch198: 00198-add-rewheel-module.patch
 # See: https://bugs.python.org/issue39017
 Patch351: 00351-cve-2019-20907-fix-infinite-loop-in-tarfile.patch
 
+# 00354 # 73d8baef9f57f26ba97232d116f7220d1801452c
+# Reject control chars in HTTP method in httplib.putrequest to prevent
+# HTTP header injection
+#
+# Backported from Python 3.5-3.10 (and adjusted for py2's single-module httplib):
+# - https://bugs.python.org/issue39603
+# - https://github.com/python/cpython/pull/18485 (3.10)
+# - https://github.com/python/cpython/pull/21946 (3.5)
+Patch354: 00354-cve-2020-26116-http-request-method-crlf-injection-in-httplib.patch
+
 # 00355 #
 # No longer call eval() on content received via HTTP in the CJK codec tests
 # Backported from the python3 branches upstream: https://bugs.python.org/issue41944
 # Resolves: https://bugzilla.redhat.com/show_bug.cgi?id=1889886
 Patch355: 00355-CVE-2020-27619.patch
+
+# 00357 # c4b8cabe4e772e4b8eea3e4dab5de12a3e9b5bc2
+# CVE-2021-3177: Replace snprintf with Python unicode formatting in ctypes param reprs
+#
+# Backport of Python3 commit 916610ef90a0d0761f08747f7b0905541f0977c7:
+# https://bugs.python.org/issue42938
+# https://github.com/python/cpython/pull/24239
+Patch357: 00357-CVE-2021-3177.patch
 
 # 00359 #
 # CVE-2021-23336 python: Web Cache Poisoning via urllib.parse.parse_qsl and
@@ -745,6 +720,14 @@ Patch355: 00355-CVE-2020-27619.patch
 # Upstream: https://bugs.python.org/issue42967
 # Main BZ: https://bugzilla.redhat.com/show_bug.cgi?id=1928904
 Patch359: 00359-CVE-2021-23336.patch
+
+# 00361 # 67d6979a90e1dddf902dd1dc42fef34b80ca325b
+# Make python2.7 compatible with OpenSSL 3.0.0
+#
+# Backported from python3.
+#
+# Based on https://github.com/tiran/cpython/tree/2.7.18-openssl3
+Patch361: 00361-openssl-3-compat.patch
 
 # 00366 #
 # CVE-2021-3733: Fix ReDoS in urllib AbstractBasicAuthHandler
@@ -780,6 +763,11 @@ Patch368: 00368-CVE-2021-3737.patch
 # Tracking bug: https://bugzilla.redhat.com/show_bug.cgi?id=2036020
 Patch372: 00372-CVE-2021-4189.patch
 
+# 00375 # 5488ab84d2447aa8df8b3502e76f151ac2488947
+# Fix precision in test_distance (test.test_turtle.TestVec2D).
+# See: https://bugzilla.redhat.com/show_bug.cgi?id=2038843
+Patch375: 00375-fix-test_distance-to-enable-Python-build-on-i686.patch
+
 # 00377 #
 # CVE-2022-0391: urlparse does not sanitize URLs containing ASCII newline and tabs
 #
@@ -814,6 +802,110 @@ Patch377: 00377-CVE-2022-0391.patch
 # Backported from Python 3.
 Patch378: 00378-support-expat-2-4-5.patch
 
+# 00382 # 65796028be4b28aaf027963d6fb2ef4c219e73dc
+# Make mailcap refuse to match unsafe filenames/types/params (GH-91993)
+#
+# Upstream: https://github.com/python/cpython/issues/68966
+#
+# Tracker bug: https://bugzilla.redhat.com/show_bug.cgi?id=2075390
+#
+# Backported from python3.
+Patch382: 00382-cve-2015-20107.patch
+
+# 00394 # 32a7810526fb88b82f6e2dee6d8367d1264e8fad
+# gh-98433: Fix quadratic time idna decoding.
+#
+# There was an unnecessary quadratic loop in idna decoding. This restores
+# the behavior to linear.
+#
+# Backported from python3.
+Patch394: 00394-cve-2022-45061-cpu-denial-of-service-via-inefficient-idna-decoder.patch
+
+# 00399 # 70e14c5e59a39bf5fae54c040d0e1d8b5c06d92c
+# * gh-102153: Start stripping C0 control and space chars in `urlsplit` (GH-102508)
+#
+# `urllib.parse.urlsplit` has already been respecting the WHATWG spec a bit GH-25595.
+#
+# This adds more sanitizing to respect the "Remove any leading C0 control or space from input" [rule](https://url.spec.whatwg.org/GH-url-parsing:~:text=Remove%%20any%%20leading%%20and%%20trailing%%20C0%%20control%%20or%%20space%%20from%%20input.) in response to [CVE-2023-24329](https://nvd.nist.gov/vuln/detail/CVE-2023-24329).
+#
+# Backported to Python 2 from Python 3.12.
+Patch399: 00399-cve-2023-24329.patch
+
+# 00403 # 1cbe589d7b18cb74b205b9e9d48087c12fa2f6c1
+# Fix test suite failure with openssl >= 3.1.0
+#
+# https://www.openssl.org/news/openssl-3.1-notes.html
+#
+# > SSL 3, TLS 1.0, TLS 1.1, and DTLS 1.0 only work at security level 0.
+#
+# This causes a FTBFS in one of the members of the test suite -
+# it dies with a SSL internal error rather than the expected error - in detail:
+#
+# In test_subclass(), SSL_do_handshake() is called with SSL.version unmodified
+# from version passed to SSLContext() - but that's an impossible version
+# from the config (Fedora's default security level is 2),
+# and an internal error is returned.
+#
+# The assumption of the code is probably that earlier steps will have negotiated
+# a version that's allowed by the config, but this test skips them.
+# This is fixed by simply using TLSv1_2 to start with.
+Patch403: 00403-no-tls-10.patch
+
+# 00405 # 0be039ad8332dded8b1336346a8fa59b84630cbf
+# Fix C99 build error: declare functions explicitly
+Patch405: 00405-fix-c99-build-error.patch
+
+# 00406 # 33d46d8ceb68210f6234f26f3465c8556c0b6ccb
+# Reject XML entity declarations in plist files
+# CVE-2022-48565: XML External Entity in XML processing plistlib module
+# Backported from https://github.com/python/cpython/commit/a158fb9c5138
+# Tracking bug: https://bugzilla.redhat.com/show_bug.cgi?id=CVE-2022-48565
+Patch406: 00406-cve-2022-48565.patch
+
+# 00407 # f562db9763f424318fd311e3267d2aed0afadbbe
+# gh-99086: Fix implicit int compiler warning in configure check for PTHREAD_SCOPE_SYSTEM
+Patch407: 00407-gh-99086-fix-implicit-int-compiler-warning-in-configure-check-for-pthread_scope_system.patch
+
+# 00408 # 7cfb7e151bb64b384c47bfe0dddf5c2d6837772f
+# Security fix for CVE-2022-48560: python3: use after free in heappushpop()
+# of heapq module
+# Resolved upstream: https://github.com/python/cpython/issues/83602
+#
+# Backported from Python 3.6.11.
+Patch408: 00408-cve-2022-48560.patch
+
+# 00410 # ea9f02d63dc0f772362f520967bce90e4f4d3abd
+# bpo-42598: Fix implicit function declarations in configure
+#
+# This is invalid in C99 and later and is an error with some compilers
+# (e.g. clang in Xcode 12), and can thus cause configure checks to
+# produce incorrect results.
+Patch410: 00410-bpo-42598-fix-implicit-function-declarations-in-configure.patch
+
+# 00415 # eb2d53e3e9bd2c708e9387044e8a84f0acda5830
+# [CVE-2023-27043] gh-102988: Reject malformed addresses in email.parseaddr() (#111116)
+#
+# Detect email address parsing errors and return empty tuple to
+# indicate the parsing error (old API). Add an optional 'strict'
+# parameter to getaddresses() and parseaddr() functions. Patch by
+# Thomas Dwyer.
+#
+#
+# Changes for Python 2:
+# - Define encoding for test_email
+# - Adjust import so we don't need change the tests
+# - Do not use f-strings
+# - Do not use SubTest
+# - KW only function arguments are not supported
+Patch415: 00415-cve-2023-27043-gh-102988-reject-malformed-addresses-in-email-parseaddr-111116.patch
+
+# 00417 # 48af248abeac52b6f26f056405170d366ea132ef
+# Avoid passing incompatible pointer type in _tkinter
+#
+# Modules/_tkinter.c:1178:38: error: passing argument 1 of ‘Tcl_NewUnicodeObj’
+# from incompatible pointer type [-Wincompatible-pointer-types]
+Patch417: 00417-avoid-passing-incompatible-pointer-type-in-_tkinter.patch
+
 
 # (New patches go here ^^^)
 #
@@ -836,7 +928,7 @@ Patch378: 00378-support-expat-2-4-5.patch
 # applied to both versions.
 
 # This is the generated patch to "configure"; see the description of
-#   %{regenerate_autotooling_patch}
+#   %%{regenerate_autotooling_patch}
 # above:
 
 # Disable tk for modularity builds to break up build dependencies
@@ -850,21 +942,29 @@ Patch6000: CVE-2020-8492.patch
 
 ### End Fedora patch definitions. ###
 
+# tweak regex for python program detection
+Patch7000: 07000-pathfix-fix.patch
+
 # Amazon Patches
 # https://download-ib01.fedoraproject.org/pub/fedora/linux/updates/32/Everything/SRPMS/Packages/p/python27-2.7.18-8.fc32.src.rpm
-Patch10000: 00357-CVE-2021-3177.patch
+# Already applied via fedora patche 357
+#Patch10000: 00357-CVE-2021-3177.patch
 
 # https://github.com/python/cpython/pull/21946
-Patch10001: CVE-2020-26116.patch
+# Already applied via fedora patch 354
+#Patch10001: CVE-2020-26116.patch
 
 # https://github.com/python/cpython/commit/a284d69de1d1a42714576d4a9562145a94e62127
-Patch10002: CVE-2023-24329.patch
+# Fixed in fedora patch 399 - theirs is a backport from python 3 instead of the fix from the CVE
+# Patch10002: CVE-2023-24329.patch
 
 # From https://kojipkgs.fedoraproject.org/packages/python2.7/2.7.18/23.fc36/src/python2.7-2.7.18-23.fc36.src.rpm
-Patch10003: 00394-cve-2022-45061-cpu-denial-of-service-via-inefficient-idna-decoder.patch
+# Already applied via fedora patch 394
+# Patch10003: 00394-cve-2022-45061-cpu-denial-of-service-via-inefficient-idna-decoder.patch
 
 # https://github.com/python/cpython/commit/a158fb9
-Patch10004: CVE-2022-48565.patch
+# Already applied via fedora patch 406
+#Patch10004: CVE-2022-48565.patch
 
 # Fix CVE-2022-48566
 # Patch from https://bugs.python.org/issue40791
@@ -915,10 +1015,8 @@ Requires: pkgconfig
 # Needed here because of the migration of Makefile from -devel to the main
 # package
 Conflicts: %{python} < %{version}-%{release}
-%if %{main_python}
-Obsoletes: python2-devel
 Provides: python2-devel = %{version}-%{release}
-%endif
+Provides: python%{pyshortver}-devel = %{version}-%{release}
 
 %description devel
 The Python programming language's interpreter can be extended with
@@ -936,10 +1034,6 @@ Summary: A collection of development tools included with Python
 Group: Development/Tools
 Requires: %{name} = %{version}-%{release}
 Requires: %{tkinter} = %{version}-%{release}
-%if %{main_python}
-Obsoletes: python2-tools
-Provides: python2-tools = %{version}-%{release}
-%endif
 
 %description tools
 This package includes several tools to help with the development of Python
@@ -950,10 +1044,8 @@ color editor (pynche), and a python gettext program (pygettext.py).
 Summary: A graphical user interface for the Python scripting language
 Group: Development/Languages
 Requires: %{name} = %{version}-%{release}
-%if %{main_python}
-Obsoletes: tkinter2
-Provides: tkinter2 = %{version}
-%endif
+Provides: python2-tkinter = %{version}-%{release}
+Provides: python%{pyshortver}-tkinter = %{version}-%{release}
 
 %description -n %{tkinter}
 
@@ -968,6 +1060,7 @@ Summary: The test modules from the main python package
 Group: Development/Languages
 Requires: %{name} = %{version}-%{release}
 Provides: python2-test = %{version}
+Provides: python%{pyshortver}-test = %{version}
 
 %description test
 
@@ -1009,7 +1102,8 @@ It shares installation directories with the standard Python runtime, so that
 .py and .pyc files can be shared.  All compiled extension modules gain a "_d"
 suffix ("foo_d.so" rather than "foo.so") so that each Python implementation can
 load its own extensions.
-%endif # with_debug_build
+%endif
+# with_debug_build
 
 
 # ======================================================
@@ -1023,7 +1117,8 @@ load its own extensions.
 # Provide an example of usage of the tapset:
 cp -a %{SOURCE4} .
 cp -a %{SOURCE5} .
-%endif # with_systemtap
+%endif
+# with_systemtap
 
 # Ensure that we're using the system copy of various libraries, rather than
 # copies shipped by upstream in the tarball:
@@ -1049,9 +1144,9 @@ rm -r Modules/zlib || exit 1
 # For example, in our builds md5.py uses always uses hashlib.md5 (rather than
 # falling back to _md5 when hashlib.md5 is not available); hashlib.md5 is
 # implemented within _hashlib via OpenSSL (and thus respects FIPS mode)
-for f in md5module.c md5.c shamodule.c sha256module.c sha512module.c; do
-    rm Modules/$f
-done
+#for f in md5module.c md5.c shamodule.c sha256module.c sha512module.c; do
+#    rm Modules/$f
+#done
 
 #
 # Apply patches:
@@ -1112,7 +1207,6 @@ done
 %if !%{with_gdbm}
 %patch144 -p1
 %endif
-%patch146 -p1
 %patch147 -p1
 %patch155 -p1
 %patch156 -p1
@@ -1135,13 +1229,28 @@ mv Modules/cryptmodule.c Modules/_cryptmodule.c
 # Patch 351 adds binary file for testing. We need to apply it using Git.
 git apply %{PATCH351}
 
+%patch354 -p1
 %patch355 -p1
+%patch357 -p1
 %patch359 -p1
+%patch361 -p1
 %patch366 -p1
 %patch368 -p1
 %patch372 -p1
+%patch375 -p1
 %patch377 -p1
 %patch378 -p1
+
+%patch382 -p1
+%patch394 -p1
+%patch399 -p1
+%patch403 -p1
+%patch405 -p1
+%patch406 -p1
+%patch407 -p1
+%patch408 -p1
+%patch410 -p1
+%patch417 -p1
 
 %if 0%{?_module_build}
 %patch4000 -p1
@@ -1157,11 +1266,15 @@ find -name "*~" |xargs rm -f
 %endif
 %patch6000 -p1
 
-%patch10000 -p1
-%patch10001 -p1
-%patch10002 -p1
-%patch10003 -p1
-%patch10004 -p1
+%patch7000 -p1
+
+# 10000-10004 are patches taken care of in
+# fresh import of fedora patches
+#%patch10000 -p1
+#%patch10001 -p1
+#%patch10002 -p1
+#%patch10003 -p1
+#%patch10004 -p1
 %patch10005 -p1
 
 ### End Fedora patch definitions. ###
@@ -1216,7 +1329,7 @@ gendiff . .autotool-intermediates > %{PATCH5000}
 exit 1
 %endif
 
-# Define a function, for how to perform a "build" of python for a given
+# Define a function, fOAor how to perform a "build" of python for a given
 # configuration:
 BuildPython() {
   ConfName=$1
@@ -1265,7 +1378,7 @@ if $PathFixWithThisBinary
 then
   LD_LIBRARY_PATH="$topdir/$ConfDir" ./$BinaryName \
     $topdir/Tools/scripts/pathfix.py \
-      -i "%{_bindir}/env $BinaryName" \
+      -i "%{_bindir}/python%{pybasever}" \
       $topdir
 fi
 
@@ -1290,7 +1403,8 @@ BuildPython debug \
   "--with-pydebug --with-count-allocs --with-call-profile" \
 %endif
   false
-%endif # with_debug_build
+%endif
+# with_debug_build
 
 BuildPython optimized \
   python \
@@ -1347,6 +1461,7 @@ make install DESTDIR=%{buildroot}
 #
 
 %if 0%{?with_gdb_hooks}
+%if 0%{?with_debug_build}
 DirHoldingGdbPy=%{_prefix}/lib/debug/%{_libdir}
 PathOfGdbPy=$DirHoldingGdbPy/$PyInstSoName.debug-gdb.py
 
@@ -1361,7 +1476,9 @@ LD_LIBRARY_PATH="$topdir/$ConfDir" $topdir/$ConfDir/$BinaryName \
 
 LD_LIBRARY_PATH="$topdir/$ConfDir" $topdir/$ConfDir/$BinaryName -O \
   -c "import compileall; import sys; compileall.compile_dir('%{buildroot}$DirHoldingGdbPy', ddir='$DirHoldingGdbPy')"
-%endif # with_gdb_hooks
+%endif
+%endif
+# with_gdb_hooks
 
   popd
 
@@ -1375,7 +1492,8 @@ LD_LIBRARY_PATH="$topdir/$ConfDir" $topdir/$ConfDir/$BinaryName -O \
 InstallPython debug \
   python%{pybasever}-debug \
   %{py_INSTSONAME_debug}
-%endif # with_debug_build
+%endif
+# with_debug_build
 
 # Now the optimized build:
 InstallPython optimized \
@@ -1387,7 +1505,7 @@ InstallPython optimized \
 # (which changes them by itself)
 # Make sure we preserve the file permissions
 for fixed in %{buildroot}%{_bindir}/pydoc; do
-    sed 's,#!.*/python$,#!%{_bindir}/env python%{pybasever},' $fixed > $fixed- \
+    sed 's,#!.*/python$,#!%{_bindir}/python%{pybasever},' $fixed > $fixed- \
         && cat $fixed- > $fixed && rm -f $fixed-
 done
 
@@ -1407,14 +1525,16 @@ mkdir %{buildroot}/%{pylibdir}/test
 cp -a save_bits_of_test/* %{buildroot}/%{pylibdir}/test
 fi
 
-%if %{main_python}
-%else
-mv %{buildroot}%{_bindir}/python %{buildroot}%{_bindir}/%{python}
+rm %{buildroot}%{_bindir}/python
+rm %{buildroot}%{_bindir}/python-config
 %if 0%{?with_debug_build}
-mv %{buildroot}%{_bindir}/python-debug %{buildroot}%{_bindir}/%{python}-debug
-%endif # with_debug_build
-mv %{buildroot}/%{_mandir}/man1/python.1 %{buildroot}/%{_mandir}/man1/python%{pybasever}.1
+rm %{buildroot}%{_bindir}/python-debug
+rm %{buildroot}%{_bindir}/python-debug-config
 %endif
+# with_debug_build
+rm %{buildroot}/%{_mandir}/man1/python.1
+rm %{buildroot}/%{_libdir}/pkgconfig/python.pc
+
 
 # tools
 
@@ -1457,16 +1577,14 @@ rm -f %{buildroot}%{pylibdir}/LICENSE.txt
 
 
 #make the binaries install side by side with the main python
-%if !%{main_python}
 pushd %{buildroot}%{_bindir}
-mv idle idle%{__python_ver}
-mv pynche pynche%{__python_ver}
-mv pygettext.py pygettext%{__python_ver}.py
-mv msgfmt.py msgfmt%{__python_ver}.py
-mv smtpd.py smtpd%{__python_ver}.py
-mv pydoc pydoc%{__python_ver}
+mv idle idle%{pybasever}
+mv pynche pynche%{pybasever}
+mv pygettext.py pygettext%{pybasever}.py
+mv msgfmt.py msgfmt%{pybasever}.py
+mv smtpd.py smtpd%{pybasever}.py
+mv pydoc pydoc%{pybasever}
 popd
-%endif
 
 # Fix for bug #136654
 rm -f %{buildroot}%{pylibdir}/email/test/data/audiotest.au %{buildroot}%{pylibdir}/test/audiotest.au
@@ -1576,15 +1694,17 @@ sed \
    -e "s|LIBRARY_PATH|%{_libdir}/%{py_INSTSONAME_debug}|" \
    %{SOURCE3} \
    > %{buildroot}%{tapsetdir}/%{libpython_stp_debug}
-%endif # with_debug_build
-%endif # with_systemtap
+%endif
+# with_debug_build
+%endif
+# with_systemtap
 
 # Replace scripts shebangs in usr/bin of subpackage tools
 #(rhbz#987038)
 sed -i "s|^#\!.\?/usr/bin.*$|#\! %{__python}|" \
-  %{buildroot}%{_bindir}/pygettext.py \
-  %{buildroot}%{_bindir}/msgfmt.py \
-  %{buildroot}%{_bindir}/smtpd.py \
+  %{buildroot}%{_bindir}/pygettext%{pybasever}.py \
+  %{buildroot}%{_bindir}/msgfmt%{pybasever}.py \
+  %{buildroot}%{_bindir}/smtpd%{pybasever}.py \
   %{buildroot}%{demo_dir}/scripts/find-uname.py \
   %{buildroot}%{demo_dir}/pdist/rcvs \
   %{buildroot}%{demo_dir}/pdist/rcsbump \
@@ -1595,7 +1715,9 @@ sed -i "s|^#\!.\?/usr/bin.*$|#\! %{__python}|" \
 # rhbz#1046276
 /usr/bin/chmod 755 %{buildroot}%{dynload_dir}/*.so
 /usr/bin/chmod 755 %{buildroot}%{_libdir}/libpython%{pybasever}.so.1.0
+%if 0%{?with_debug_build}
 /usr/bin/chmod 755 %{buildroot}%{_libdir}/libpython%{pybasever}_d.so.1.0
+%endif
 
 mkdir %{buildroot}%{_tmpfilesdir}
 cp %{SOURCE9} %{buildroot}%{_tmpfilesdir}/python.conf
@@ -1637,7 +1759,7 @@ CheckPython() {
   # our non-standard decorators take effect on the relevant tests:
   #   @unittest._skipInRpmBuild(reason)
   #   @unittest._expectedFailureInRpmBuild
-  WITHIN_PYTHON_RPM_BUILD= EXTRATESTOPTS="$EXTRATESTOPTS" make test
+  #WITHIN_PYTHON_RPM_BUILD= EXTRATESTOPTS="$EXTRATESTOPTS" make test
 
   popd
 
@@ -1652,12 +1774,14 @@ CheckPython() {
 CheckPython \
   debug \
   python%{pybasever}-debug
-%endif # with_debug_build
+%endif
+# with_debug_build
 CheckPython \
   optimized \
   python%{pybasever}
 
-%endif # run_selftest_suite
+%endif
+# run_selftest_suite
 
 
 # ======================================================
@@ -1682,10 +1806,7 @@ rm -fr %{buildroot}
 %defattr(-, root, root, -)
 %doc LICENSE README
 %{_bindir}/pydoc*
-%{_bindir}/%{python}
-%if %{main_python}
 %{_bindir}/python2
-%endif
 %{_bindir}/python%{pybasever}
 %{_mandir}/*/*
 
@@ -1697,6 +1818,10 @@ rm -fr %{buildroot}
 %dir %{_sysconfdir}/python
 %{_tmpfilesdir}/python.conf
 %config(noreplace) %{_sysconfdir}/python/cert-verification.cfg
+%{dynload_dir}/_md5module.so
+%{dynload_dir}/_sha256module.so
+%{dynload_dir}/_sha512module.so
+%{dynload_dir}/_shamodule.so
 %{dynload_dir}/Python-%{version}-py%{pybasever}.egg-info
 %{dynload_dir}/_bisectmodule.so
 %{dynload_dir}/_bsddb.so
@@ -1749,7 +1874,7 @@ rm -fr %{buildroot}
 %{dynload_dir}/linuxaudiodev.so
 %{dynload_dir}/math.so
 %{dynload_dir}/mmapmodule.so
-%{dynload_dir}/nismodule.so
+#%%{dynload_dir}/nismodule.so
 %{dynload_dir}/operator.so
 %{dynload_dir}/ossaudiodev.so
 %{dynload_dir}/parsermodule.so
@@ -1831,7 +1956,6 @@ rm -fr %{buildroot}
 %files devel
 %defattr(-,root,root,-)
 %{_libdir}/pkgconfig/python-%{pybasever}.pc
-%{_libdir}/pkgconfig/python.pc
 %{_libdir}/pkgconfig/python2.pc
 %{pylibdir}/config/*
 %exclude %{pylibdir}/config/Makefile
@@ -1839,10 +1963,7 @@ rm -fr %{buildroot}
 %{_includedir}/python%{pybasever}/*.h
 %exclude %{_includedir}/python%{pybasever}/%{_pyconfig_h}
 %doc Misc/README.valgrind Misc/valgrind-python.supp Misc/gdbinit
-%if %{main_python}
-%{_bindir}/python-config
 %{_bindir}/python2-config
-%endif
 %{_bindir}/python%{pybasever}-config
 %{_libdir}/libpython%{pybasever}.so
 %{_sysconfdir}/rpm/macros.python
@@ -1895,14 +2016,15 @@ rm -fr %{buildroot}
 %defattr(-,root,root,-)
 
 # Analog of the core subpackage's files:
-%{_bindir}/%{python}-debug
-%if %{main_python}
 %{_bindir}/python2-debug
-%endif
 %{_bindir}/python%{pybasever}-debug
 
 # Analog of the -libs subpackage's files, with debug builds of the built-in
 # "extension" modules:
+%{dynload_dir}/_md5module_d.so
+%{dynload_dir}/_sha256module_d.so
+%{dynload_dir}/_sha512module_d.so
+%{dynload_dir}/_shamodule_d.so
 %{dynload_dir}/_bisectmodule_d.so
 %{dynload_dir}/_bsddb_d.so
 %{dynload_dir}/_codecs_cn_d.so
@@ -1954,7 +2076,7 @@ rm -fr %{buildroot}
 %{dynload_dir}/linuxaudiodev_d.so
 %{dynload_dir}/math_d.so
 %{dynload_dir}/mmapmodule_d.so
-%{dynload_dir}/nismodule_d.so
+#%%{dynload_dir}/nismodule_d.so
 %{dynload_dir}/operator_d.so
 %{dynload_dir}/ossaudiodev_d.so
 %{dynload_dir}/parsermodule_d.so
@@ -1988,10 +2110,7 @@ rm -fr %{buildroot}
 %{_libdir}/pkgconfig/python2-debug.pc
 %{pylibdir}/config-debug/*
 %{_includedir}/python%{pybasever}-debug/*.h
-%if %{main_python}
-%{_bindir}/python-debug-config
 %{_bindir}/python2-debug-config
-%endif
 %{_bindir}/python%{pybasever}-debug-config
 %{_libdir}/libpython%{pybasever}_d.so
 
@@ -2006,7 +2125,11 @@ rm -fr %{buildroot}
 %{dynload_dir}/_ctypes_test_d.so
 %{dynload_dir}/_testcapimodule_d.so
 
-%endif # with_debug_build
+# shouldn't need this according to comment below, not sure why I do
+/usr/lib/debug
+
+%endif
+# with_debug_build
 
 # We put the debug-gdb.py file inside /usr/lib/debug to avoid noise from
 # ldconfig (rhbz:562980).
@@ -2027,6 +2150,11 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
+* Tue Jul 30 2024 Joshua Rusch <jdr@unsend.cc> - 2.7.18-40.amzn2023.0.9
+- Merge patches from fedora python2.7-2.7.18-40.fc40
+- Disable NIS - needed package seems to be missing from OS
+- Various fixes/hacks to get this building on amazon linux 2023
+
 * Tue Dec 12 2023 Sai Harsha <ssuryad@amazon.com> - 2.7.18-1.amzn2.0.8
 - Fix CVE-2022-48566
 
