@@ -1759,7 +1759,7 @@ CheckPython() {
   # our non-standard decorators take effect on the relevant tests:
   #   @unittest._skipInRpmBuild(reason)
   #   @unittest._expectedFailureInRpmBuild
-  #WITHIN_PYTHON_RPM_BUILD= EXTRATESTOPTS="$EXTRATESTOPTS" make test
+  WITHIN_PYTHON_RPM_BUILD= EXTRATESTOPTS="$EXTRATESTOPTS" make test
 
   popd
 
@@ -2020,7 +2020,7 @@ rm -fr %{buildroot}
 %{_bindir}/python%{pybasever}-debug
 
 # Analog of the -libs subpackage's files, with debug builds of the built-in
-# "extension" modules:
+# "extension" modules:test
 %{dynload_dir}/_md5module_d.so
 %{dynload_dir}/_sha256module_d.so
 %{dynload_dir}/_sha512module_d.so
@@ -2154,6 +2154,7 @@ rm -fr %{buildroot}
 - Merge patches from fedora python2.7-2.7.18-40.fc40
 - Disable NIS - needed package seems to be missing from OS
 - Various fixes/hacks to get this building on amazon linux 2023
+- remove fips patch - does not work any more with current openssl
 
 * Tue Dec 12 2023 Sai Harsha <ssuryad@amazon.com> - 2.7.18-1.amzn2.0.8
 - Fix CVE-2022-48566
