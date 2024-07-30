@@ -3,11 +3,14 @@
 
 # But not these files...
 !.gitignore
+!RPM-GPG-KEY
 !README.md
 !RPMS/
 !RPMS/*
 !SRPMS/
 !SRPMS/*
+!SPECS/
+!SPECS/*
 # etc...
 
 # ...even if they are in subdirectories
