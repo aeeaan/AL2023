@@ -13,5 +13,7 @@
 !SPECS/*
 # etc...
 
+*~
+
 # ...even if they are in subdirectories
 #!*/
