@@ -11,6 +11,8 @@
 !SRPMS/*
 !SPECS/
 !SPECS/*
+!repodata/
+!repodata/*
 # etc...
 
 *~
