@@ -1,7 +1,9 @@
+%global __python /usr/bin/python2
+%global with_docs 0
 # sitelib for noarch packages
 %{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print get_python_lib()")}
 
-Name:           python-virtualenv
+Name:           python2-virtualenv
 Version:        15.1.0
 Release:        4%{?dist}
 Summary:        Tool to create isolated Python environments
@@ -41,9 +43,10 @@ BuildArch:      noarch
 BuildRequires:  python2-devel
 Requires:       python-setuptools, python2-devel
 
+Provides:       python-virtualenv = %{version}-%{release}
 Provides:       python2-virtualenv = %{version}-%{release}
 
-%if 0%{?fedora}
+%if 0%{?with_docs}
 BuildRequires:  python-sphinx
 %endif
 
@@ -82,7 +85,7 @@ popd  # out of virtualenv_support
 %{__python} setup.py build
 
 # Build docs on Fedora
-%if 0%{?fedora} > 0
+%if 0%{?with_docs}
 %{__python} setup.py build_sphinx
 %endif
 
@@ -105,7 +108,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc docs/*rst PKG-INFO AUTHORS.txt LICENSE.txt
 # Include sphinx docs on Fedora
-%if 0%{?fedora} > 0
+%if 0%{?with_docs}
 %doc build/sphinx/*
 %endif
 # For noarch packages: sitelib
@@ -114,6 +117,10 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Tue Jul 30 2024 Joshua Rusch <jdr@unsend.cc> - 15.1.0-4.amzn2023
+- rebuild for amazon 2023
+- add with_docs instead of fedora check for building docs
+
 * Thu Feb 13 2020 Lumír Balhar <lbalhar@redhat.com> - 15.1.0-4
 - Bump
 Resolves: rhbz#1649153
