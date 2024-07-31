@@ -5,8 +5,6 @@
 #   bcond_with bootstrap = tests enabled, package with whl created
 %bcond_with bootstrap
 
-%bcond_without python2
-
 %if 0%{?amzn}
 %bcond_with tests
 %endif
@@ -15,7 +13,7 @@
 %global python_wheelname %{pypi_name}-%{version}-py2.py3-none-any.whl
 %global python_wheeldir %{_datadir}/python-wheels
 
-Name:           python-%{pypi_name}
+Name:           python2-%{pypi_name}
 Version:        0.34.2
 Release:        1%{?dist}%{?_trivial}%{?_buildid}
 Epoch:          1
@@ -48,9 +46,6 @@ compatible install in a way that is very close to the on-disk format.
 
 %description %{_description}
 
-%if %{with python2}
-%package -n     python2-%{pypi_name}
-Summary:        %{summary}
 BuildRequires:  python2-devel
 BuildRequires:  python2-setuptools
 %if ! %{with bootstrap}
@@ -64,30 +59,6 @@ Conflicts:      python-%{pypi_name} < %{version}-%{release}
 %description -n python2-%{pypi_name} %{_description}
 
 Python 2 version.
-%endif
-
-
-%package -n     python3-%{pypi_name}
-Summary:        %{summary}
-BuildRequires:  python3-devel
-# python3 bootstrap: this is rebuilt before the final build of python3, which
-# adds the dependency on python3-rpm-generators, so we require it manually
-BuildRequires:  python3-rpm-generators
-BuildRequires:  python3-setuptools
-%if %{without bootstrap}
-%if 0%{?amzn}
-BuildRequires:  python3-wheel
-%endif
-%if %{with tests}
-BuildRequires:  python3-pytest
-%endif
-%endif
-%{?python_provide:%python_provide python3-%{pypi_name}}
-
-%description -n python3-%{pypi_name} %{_description}
-
-Python 3 version.
-
 
 %if %{without bootstrap}
 %package wheel
@@ -103,32 +74,25 @@ A Python wheel of wheel to use with virtualenv.
 
 
 %build
-%if %{with python2}
 %py2_build
-%endif
-%py3_build
 
-%if %{without bootstrap}
-%py3_build_wheel
-%endif
+#%if %{without bootstrap}
+#%py3_build_wheel
+#%endif
 
 
 %install
-%py3_install
-mv %{buildroot}%{_bindir}/%{pypi_name}{,-%{python3_version}}
-ln -s %{pypi_name}-%{python3_version} %{buildroot}%{_bindir}/%{pypi_name}-3
-
-%if %{with python2}
 %py2_install
 mv %{buildroot}%{_bindir}/%{pypi_name}{,-%{python2_version}}
 ln -s %{pypi_name}-%{python2_version} %{buildroot}%{_bindir}/%{pypi_name}-2
-ln -s %{pypi_name}-2 %{buildroot}%{_bindir}/%{pypi_name}
-%endif
+#ln -s %{pypi_name}-2 %{buildroot}%{_bindir}/%{pypi_name}
 
 %if %{without bootstrap}
 mkdir -p %{buildroot}%{python_wheeldir}
 install -p dist/%{python_wheelname} -t %{buildroot}%{python_wheeldir}
 
+#remove unversioned file
+rm %{buildroot}%{_bindir}/%{pypi_name}
 
 %check
 rm setup.cfg
@@ -140,22 +104,12 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} py.test-3 -v --ignore build
 %endif
 %endif # with tests
 
-%if %{with python2}
 %files -n python2-%{pypi_name}
 %license LICENSE.txt
 %doc README.rst
-%{_bindir}/%{pypi_name}
 %{_bindir}/%{pypi_name}-2
 %{_bindir}/%{pypi_name}-%{python2_version}
 %{python2_sitelib}/%{pypi_name}*
-%endif
-
-%files -n python3-%{pypi_name}
-%license LICENSE.txt
-%doc README.rst
-%{_bindir}/%{pypi_name}-3
-%{_bindir}/%{pypi_name}-%{python3_version}
-%{python3_sitelib}/%{pypi_name}*
 
 %if %{without bootstrap}
 %files wheel
@@ -166,6 +120,9 @@ PYTHONPATH=%{buildroot}%{python3_sitelib} py.test-3 -v --ignore build
 %endif
 
 %changelog
+* Wed Jul 31 2024 Joshua Rusch <jdr@unsend.cc> - 1:0.34.2-1.amzn2023.0.2
+- Strip out python 3 builds
+
 * Mon Nov 20 2023 Sai Harsha <ssuryad@amazon.com> - 1:0.34.2-1.amzn2.0.2
 - Fix CVE-2022-40898
 
