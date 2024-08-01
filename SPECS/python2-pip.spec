@@ -4,7 +4,6 @@
 %bcond_with bootstrap
 %bcond_with tests
 
-%bcond_without python2
 %bcond_with doc
 
 %global srcname pip
@@ -22,7 +21,37 @@
 %global bashcomp2 1
 %endif
 
-Name:           python-%{srcname}
+# Virtual provides for the packages bundled by pip.
+# You can find the versions in src/pip/_vendor/vendor.txt file.
+%global bundled() %{expand:
+Provides: bundled(python%{1}dist(appdirs)) = 1.4.4
+Provides: bundled(python%{1}dist(cachecontrol)) = 0.12.6
+Provides: bundled(python%{1}dist(certifi)) = 2020.6.20
+Provides: bundled(python%{1}dist(chardet)) = 3.0.4
+Provides: bundled(python%{1}dist(colorama)) = 0.4.3
+Provides: bundled(python%{1}dist(contextlib2)) = 0.6.post1
+Provides: bundled(python%{1}dist(distlib)) = 0.3.1
+Provides: bundled(python%{1}dist(distro)) = 1.5
+Provides: bundled(python%{1}dist(html5lib)) = 1.1
+Provides: bundled(python%{1}dist(idna)) = 2.10
+Provides: bundled(python%{1}dist(ipaddress)) = 1.0.23
+Provides: bundled(python%{1}dist(msgpack)) = 1
+Provides: bundled(python%{1}dist(packaging)) = 20.4
+Provides: bundled(python%{1}dist(pep517)) = 0.8.2
+Provides: bundled(python%{1}dist(progress)) = 1.5
+Provides: bundled(python%{1}dist(pyparsing)) = 2.4.7
+Provides: bundled(python%{1}dist(requests)) = 2.24
+Provides: bundled(python%{1}dist(resolvelib)) = 0.4
+Provides: bundled(python%{1}dist(retrying)) = 1.3.3
+Provides: bundled(python%{1}dist(setuptools)) = 44
+Provides: bundled(python%{1}dist(six)) = 1.15
+Provides: bundled(python%{1}dist(toml)) = 0.10.1
+Provides: bundled(python%{1}dist(urllib3)) = 1.25.9
+Provides: bundled(python%{1}dist(webencodings)) = 0.5.1
+}
+
+
+Name:           python2-%{srcname}
 # When updating, update the bundled libraries versions bellow!
 # You can use vendor_meta.sh in the dist git repo
 Version:        20.2.2
@@ -62,6 +91,33 @@ URL:            https://pip.pypa.io/
 Source0:        https://github.com/pypa/pip/archive/%{version}/%{srcname}-%{version}.tar.gz
 
 BuildArch:      noarch
+
+BuildRequires:  python2-devel
+BuildRequires:  python2-setuptools
+%if %{with tests}
+BuildRequires:  python2-mock
+BuildRequires:  python2-pytest
+BuildRequires:  python2-pretend
+BuildRequires:  python2-freezegun
+BuildRequires:  python2-scripttest
+BuildRequires:  python2-pyyaml
+%endif
+%if %{without bootstrap}
+BuildRequires:  python2-pip
+BuildRequires:  python2-wheel
+%endif
+BuildRequires:  ca-certificates
+Requires:       ca-certificates
+Requires:       python2-setuptools
+
+Provides:       python2-pip = %{version}-%{release}
+
+# Virtual provides for the packages bundled by pip:
+%{bundled 2}
+
+%if ! 0%{?amzn}
+%{crypt_compat_recommends 2}
+%endif
 
 %if %{with tests}
 BuildRequires:  /usr/bin/git
@@ -143,37 +199,6 @@ written in Python. Many packages can be found in the Python Package Index
 (PyPI). pip is a recursive acronym that can stand for either "Pip Installs
 Packages" or "Pip Installs Python".
 
-
-
-# Virtual provides for the packages bundled by pip.
-# You can find the versions in src/pip/_vendor/vendor.txt file.
-%global bundled() %{expand:
-Provides: bundled(python%{1}dist(appdirs)) = 1.4.4
-Provides: bundled(python%{1}dist(cachecontrol)) = 0.12.6
-Provides: bundled(python%{1}dist(certifi)) = 2020.6.20
-Provides: bundled(python%{1}dist(chardet)) = 3.0.4
-Provides: bundled(python%{1}dist(colorama)) = 0.4.3
-Provides: bundled(python%{1}dist(contextlib2)) = 0.6.post1
-Provides: bundled(python%{1}dist(distlib)) = 0.3.1
-Provides: bundled(python%{1}dist(distro)) = 1.5
-Provides: bundled(python%{1}dist(html5lib)) = 1.1
-Provides: bundled(python%{1}dist(idna)) = 2.10
-Provides: bundled(python%{1}dist(ipaddress)) = 1.0.23
-Provides: bundled(python%{1}dist(msgpack)) = 1
-Provides: bundled(python%{1}dist(packaging)) = 20.4
-Provides: bundled(python%{1}dist(pep517)) = 0.8.2
-Provides: bundled(python%{1}dist(progress)) = 1.5
-Provides: bundled(python%{1}dist(pyparsing)) = 2.4.7
-Provides: bundled(python%{1}dist(requests)) = 2.24
-Provides: bundled(python%{1}dist(resolvelib)) = 0.4
-Provides: bundled(python%{1}dist(retrying)) = 1.3.3
-Provides: bundled(python%{1}dist(setuptools)) = 44
-Provides: bundled(python%{1}dist(six)) = 1.15
-Provides: bundled(python%{1}dist(toml)) = 0.10.1
-Provides: bundled(python%{1}dist(urllib3)) = 1.25.9
-Provides: bundled(python%{1}dist(webencodings)) = 0.5.1
-}
-
 # Some manylinux1 wheels need libcrypt.so.1.
 # Manylinux1, a common (as of 2019) platform tag for binary wheels, relies
 # on a glibc version that included ancient crypto functions, which were
@@ -189,87 +214,6 @@ Provides: bundled(python%{1}dist(webencodings)) = 0.5.1
 #Recommends: (libcrypt.so.1()(64bit) if python%{1}(x86-64))
 #Recommends: (libcrypt.so.1 if python%{1}(x86-32))
 #}
-
-%if %{with python2}
-%package -n python2-%{srcname}
-Summary:        A tool for installing and managing Python 2 packages
-BuildRequires:  python2-devel
-BuildRequires:  python2-setuptools
-%if %{with tests}
-BuildRequires:  python2-mock
-BuildRequires:  python2-pytest
-BuildRequires:  python2-pretend
-BuildRequires:  python2-freezegun
-BuildRequires:  python2-scripttest
-BuildRequires:  python2-pyyaml
-%endif
-%if %{without bootstrap}
-BuildRequires:  python2-pip
-BuildRequires:  python2-wheel
-%endif
-BuildRequires:  ca-certificates
-Requires:       ca-certificates
-Requires:       python2-setuptools
-
-# Virtual provides for the packages bundled by pip:
-%{bundled 2}
-
-%{?python_provide:%python_provide python2-%{srcname}}
-Provides:       pip = %{version}-%{release}
-
-%if ! 0%{?amzn}
-%{crypt_compat_recommends 2}
-%endif
-
-%description -n python2-%{srcname}
-pip is a package management system used to install and manage software packages
-written in Python. Many packages can be found in the Python Package Index
-(PyPI). pip is a recursive acronym that can stand for either "Pip Installs
-Packages" or "Pip Installs Python".
-
-%endif # with python2
-
-
-%package -n python%{python3_pkgversion}-%{srcname}
-Summary:        A tool for installing and managing Python3 packages
-
-BuildRequires:  python%{python3_pkgversion}-devel
-# python3 bootstrap: this is rebuilt before the final build of python3, which
-# adds the dependency on python3-rpm-generators, so we require it manually
-BuildRequires:  python%{python3_pkgversion}-rpm-generators
-BuildRequires:  python%{python3_pkgversion}-setuptools
-BuildRequires:  bash-completion
-%if %{with tests}
-BuildRequires:  python%{python3_pkgversion}-mock
-BuildRequires:  python%{python3_pkgversion}-pytest
-BuildRequires:  python%{python3_pkgversion}-pretend
-BuildRequires:  python%{python3_pkgversion}-freezegun
-BuildRequires:  python%{python3_pkgversion}-scripttest
-BuildRequires:  python%{python3_pkgversion}-virtualenv
-BuildRequires:  python%{python3_pkgversion}-pyyaml
-%endif
-%if %{without bootstrap}
-BuildRequires:  python%{python3_pkgversion}-pip
-BuildRequires:  python%{python3_pkgversion}-wheel
-%endif
-BuildRequires:  ca-certificates
-Requires:       ca-certificates
-Requires:  python%{python3_pkgversion}-setuptools
-
-# Virtual provides for the packages bundled by pip:
-%{bundled 3}
-
-%{?python_provide:%python_provide python%{python3_pkgversion}-%{srcname}}
-
-%if ! 0%{?amzn}
-%{crypt_compat_recommends 3}
-%endif
-
-%description -n python%{python3_pkgversion}-%{srcname}
-pip is a package management system used to install and manage software packages
-written in Python. Many packages can be found in the Python Package Index
-(PyPI). pip is a recursive acronym that can stand for either "Pip Installs
-Packages" or "Pip Installs Python".
 
 %if %{with doc}
 %package doc
@@ -289,11 +233,9 @@ Requires:       ca-certificates
 
 # Virtual provides for the packages bundled by pip:
 %{bundled 2}
-%{bundled 3}
 
 %if ! 0%{?amzn}
 %{crypt_compat_recommends 2}
-%{crypt_compat_recommends 3}
 %endif
 
 %description wheel
@@ -332,15 +274,7 @@ ln -s %{python_wheeldir} tests/data/common_wheels
 
 
 %build
-%if %{with python2} && %{with bootstrap}
 %py2_build
-%endif
-
-%if %{without bootstrap}
-%py3_build_wheel
-%else
-%py3_build
-%endif
 
 %if %{with doc}
 export PYTHONPATH=./src/
@@ -352,32 +286,17 @@ rm -rf docs/build/html/{.doctrees,.buildinfo}
 
 
 %install
-%if %{without bootstrap}
-%py3_install_wheel %{python_wheelname}
-%else
-%py3_install
-%endif
-
-# TODO: we have to remove this by hand now, but it'd be nice if we wouldn't have to
-# (pip install wheel doesn't overwrite)
-rm %{buildroot}%{_bindir}/pip
 
 %if %{with doc}
 pushd docs/build/man
 install -d %{buildroot}%{_mandir}/man1
 for MAN in *1; do
 install -pm0644 $MAN %{buildroot}%{_mandir}/man1/$MAN
-%if %{with python2}
 install -pm0644 $MAN %{buildroot}%{_mandir}/man1/${MAN/pip/pip2}
-%endif
-for pip in "pip3" "pip-3" "pip%{python3_version}" "pip-%{python3_version}"; do
-echo ".so $MAN" > %{buildroot}%{_mandir}/man1/${MAN/pip/$pip}
-done
 done
 popd
 %endif # with doc
 
-%if %{with python2}
 %if %{without bootstrap}
 %if 0%{?amzn}
 pip%{python2_version} install -I dist/%{python_wheelname} --root %{buildroot} --no-deps
@@ -387,7 +306,10 @@ pip%{python2_version} install -I dist/%{python_wheelname} --root %{buildroot} --
 %else
 %py2_install
 %endif
-%endif # with python2
+
+# TODO: we have to remove this by hand now, but it'd be nice if we wouldn't have to
+# (pip install wheel doesn't overwrite)
+rm %{buildroot}%{_bindir}/pip
 
 # before we ln -s anything, we apply Source10 patch to all pips:
 # we don't do this when bootstrapping because the entrypoints look different
@@ -399,62 +321,21 @@ done
 %endif
 
 mkdir -p %{buildroot}%{bashcompdir}
-%if %{with python2}
 PYTHONPATH=%{buildroot}%{python2_sitelib} \
-    %{buildroot}%{_bindir}/pip completion --bash \
-    > %{buildroot}%{bashcompdir}/pip
-%endif
-PYTHONPATH=%{buildroot}%{python3_sitelib} \
-    %{buildroot}%{_bindir}/pip3 completion --bash \
-    > %{buildroot}%{bashcompdir}/pip3
-pips2=pip
-pips3=pip3
-for pip in %{buildroot}%{_bindir}/pip*; do
-    pip=$(basename $pip)
-    case $pip in
-        pip3?*)
-            pips3="$pips3 $pip"
-%if 0%{?bashcomp2}
-            ln -s pip3 %{buildroot}%{bashcompdir}/$pip
-%endif
-            ;;
-%if %{with python2}
-        pip2*)
-            pips2="$pips2 $pip"
-%if 0%{?bashcomp2}
-            ln -s pip %{buildroot}%{bashcompdir}/$pip
-%endif
-            ;;
-%endif
-    esac
-done
-sed -i -e "s/^\\(complete.*\\) pip\$/\\1 $pips3/" \
-    -e s/_pip_completion/_pip3_completion/ \
-    %{buildroot}%{bashcompdir}/pip3
+    %{buildroot}%{_bindir}/pip2 completion --bash \
+    > %{buildroot}%{bashcompdir}/pip2
 
-%if %{with python2}
-sed -i -e "s/^\\(complete.*\\) pip\$/\\1 $pips2/" \
-    %{buildroot}%{bashcompdir}/pip
-%endif
+sed -i -e "s/^\\(complete.*\\) pip\$/\\1 pip2/" \
+    %{buildroot}%{bashcompdir}/pip2
 
 # Provide symlinks to executables to comply with Fedora guidelines for Python
-%if %{with python2}
 ln -s ./pip%{python2_version} %{buildroot}%{_bindir}/pip-%{python2_version}
 ln -s ./pip-%{python2_version} %{buildroot}%{_bindir}/pip-2
-%endif
-
-ln -s ./pip%{python3_version} %{buildroot}%{_bindir}/pip-%{python3_version}
-ln -s ./pip-%{python3_version} %{buildroot}%{_bindir}/pip-3
-
 
 # Make sure the INSTALLER is not pip, otherwise Patch2 won't work
 # TODO Maybe we should make all our python packages have this?
 %if %{without bootstrap}
-%if %{with python2}
 echo rpm > %{buildroot}%{python2_sitelib}/pip-%{version}.dist-info/INSTALLER
-%endif
-
-echo rpm > %{buildroot}%{python3_sitelib}/pip-%{version}.dist-info/INSTALLER
 %endif
 
 %if %{without bootstrap}
@@ -479,21 +360,14 @@ pytest_k='not completion and
 mkdir _bin
 export PATH="$PWD/_bin:$PATH"
 
-%if %{with python2}
 export PYTHONPATH=%{buildroot}%{python2_sitelib}
 ln -s %{buildroot}%{_bindir}/pip2 _bin/pip
 # test_more_than_one_package assumes virtualenv is present
 %{__python2} -m pytest -m 'not network' -k "$(echo $pytest_k) and not test_more_than_one_package"
+
 %endif
 
 
-export PYTHONPATH=%{buildroot}%{python3_sitelib}
-ln -sf %{buildroot}%{_bindir}/pip3 _bin/pip
-%{__python3} -m pytest -m 'not network' -k "$(echo $pytest_k)"
-%endif
-
-
-%if %{with python2}
 %files -n python2-%{srcname}
 %license LICENSE.txt
 %doc README.rst
@@ -502,34 +376,14 @@ ln -sf %{buildroot}%{_bindir}/pip3 _bin/pip
 %{_mandir}/man1/pip2.*
 %{_mandir}/man1/pip-*
 %endif
-%{_bindir}/pip
 %{_bindir}/pip2
 %{_bindir}/pip-2
 %{_bindir}/pip%{python2_version}
 %{_bindir}/pip-%{python2_version}
 %{python2_sitelib}/pip*
 %dir %{bashcompdir}
-%{bashcompdir}/pip
 %if 0%{?bashcomp2}
-%{bashcompdir}/pip2*
-%dir %(dirname %{bashcompdir})
-%endif
-%endif # with python2
-
-%files -n python%{python3_pkgversion}-%{srcname}
-%license LICENSE.txt
-%doc README.rst
-%if %{with doc}
-%{_mandir}/man1/pip3.*
-%endif
-%{_bindir}/pip3
-%{_bindir}/pip-3
-%{_bindir}/pip%{python3_version}
-%{_bindir}/pip-%{python3_version}
-%{python3_sitelib}/pip*
-%dir %{bashcompdir}
-%{bashcompdir}/pip3*
-%if 0%{?bashcomp2}
+%{bashcompdir}/pip2
 %dir %(dirname %{bashcompdir})
 %endif
 
@@ -549,6 +403,9 @@ ln -sf %{buildroot}%{_bindir}/pip3 _bin/pip
 %endif
 
 %changelog
+* Wed Jul 31 2024 Joshua Rusch <jdr@unsend.cc> - 20.2.2-1.amzn2023.0.5
+- Strip out python3 and tweaks for amazon 2023 linux
+
 * Mon Nov 20 2023 Sai Harsha <ssuryad@amazon.com> - 20.2.2-1.amzn2.0.5
 - Fix CVE-2023-5752
 
