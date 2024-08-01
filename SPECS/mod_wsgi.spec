@@ -1,5 +1,6 @@
 %define _trivial .0
 %define _buildid .3
+%global debug_package %{nil}
 
 %{!?_httpd_apxs: %{expand: %%global _httpd_apxs %%{_sbindir}/apxs}}
 %{!?_httpd_mmn: %{expand: %%global _httpd_mmn %%(cat %{_includedir}/httpd/.mmn || echo missing-httpd-devel)}}
@@ -9,14 +10,14 @@
 %{!?_httpd_moddir:    %{expand: %%global _httpd_moddir    %%{_libdir}/httpd/modules}}
 
 #Amazon condition to build with both python 2 and 3 sub-packages
-%if 0%{?amzn2}
-%global with_python3 1
+%if 0%{?amzn2023}
+%global with_python3 0
 %global with_python2 1
 %endif
 
 Name:           mod_wsgi
 Version:        3.4
-Release:        12%{?dist}%{?_trivial}%{?_buildid}
+Release:        18%{?dist}%{?_trivial}%{?_buildid}
 Summary:        A WSGI interface for Python web applications in Apache
 Group:          System Environment/Libraries
 License:        ASL 2.0
@@ -28,6 +29,9 @@ Patch0:         mod_wsgi-3.4-connsbh.patch
 Patch1:         mod_wsgi-3.4-procexit.patch
 Patch2:         mod_wsgi-3.4-coredump.patch
 Patch3:         mod_wsgi-3.4-CVE-2014-0240.patch
+Patch4:         mod_wsgi-3.4-deadlock.patch
+Patch5:         mod_wsgi-3.4-restart-segfault.patch
+Patch6:         mod_wsgi-3.4-head-to-get.patch
 Patch100:       CVE-2014-8583.patch
 Patch101:       mod_wsgi-3.4-python.patch
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -148,6 +152,9 @@ rm -rf $RPM_BUILD_ROOT
 %endif
 
 %changelog
+* Wed Jul 31 2024 Joshua Rusch <jdr@unsend.cc> - 3.4-18.amzn2023.0.3
+- Add in patches from final centos 7 release
+
 * Mon Apr 12 2021 Sonia Xu <sonix@amazon.com> - 3.4-12.amzn2.0.3
 - Add amzn2 conditions and patch to build for python3
 
