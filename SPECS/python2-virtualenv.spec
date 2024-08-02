@@ -97,7 +97,7 @@ rm -f build/sphinx/html/.buildinfo
 
 # The versioned 2.x script was removed from upstream. Add it back.
 cp %{buildroot}/%{_bindir}/virtualenv %{buildroot}/%{_bindir}/virtualenv-%{python2_version}
-cp %{buildroot}/%{_bindir}/virtualenv %{buildroot}/%{_bindir}/virtualenv-2
+mv %{buildroot}/%{_bindir}/virtualenv %{buildroot}/%{_bindir}/virtualenv-2
 
 
 %clean
