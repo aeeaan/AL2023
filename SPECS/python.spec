@@ -95,6 +95,20 @@
 %define _trivial .0
 %define _buildid .9
 
+# https://fedoraproject.org/wiki/Changes/Package_information_on_ELF_objects
+# https://bugzilla.redhat.com/2043092
+# The default %%build_ldflags macro contains a reference to a file that only
+# exists in the builddir of this very package.
+# The flag is stored in distutils/sysconfig and is used to build extension modules.
+# As a result, 3rd party extension modules cannot be built,
+# because the file does not exist when this package is installed.
+# Python 3 solves this by using %%extension_ldflags in LDFLAGS_NODIST,
+# however Python 2 does not support LDFLAGS_NODIST, so we opt-out completely.
+# The exact opt-out mechanism is still not finalized, so we use all of them:
+%undefine _package_note_flags
+%undefine _package_note_file
+%undefine _generate_package_note_file
+
 # ==================
 # Top-level metadata
 # ==================
@@ -102,7 +116,7 @@ Summary: An interpreted, interactive, object-oriented programming language
 Name: %{python}
 # Remember to also rebase python-docs when changing this:
 Version: 2.7.18
-Release: 40%{?dist}%{?_trivial}%{?_buildid}
+Release: 41%{?dist}%{?_trivial}%{?_buildid}
 License: Python
 Group: Development/Languages
 Requires: %{python}-libs%{?_isa} = %{version}-%{release}
@@ -2150,6 +2164,9 @@ rm -fr %{buildroot}
 # ======================================================
 
 %changelog
+* Thu Aug 08 2024 Joshua Rusch <jdr@unsend.cc> - 2.7.18-41.amzn2023.0.9
+- Need to opt out of package_note for python2 (taken from fedora package)
+
 * Tue Jul 30 2024 Joshua Rusch <jdr@unsend.cc> - 2.7.18-40.amzn2023.0.9
 - Merge patches from fedora python2.7-2.7.18-40.fc40
 - Disable NIS - needed package seems to be missing from OS
